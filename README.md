@@ -14,7 +14,7 @@ This repo is intentionally separate from Titan and handles only:
    - Breeze login URL
    - Signed token update URL
 3. You complete login + 2FA on mobile.
-4. Open signed token update URL and paste `API_Session` or full redirect URL.
+4. Call the signed token update URL with `token_input` (raw `API_Session` or full redirect URL).
 5. Supabase Edge Function stores token in `session_config`.
 6. Titan picks up the new token in the next run.
 
@@ -37,8 +37,9 @@ Function path:
 
 Behavior:
 
-- GET with valid `state` renders a mobile-friendly form.
-- POST accepts `token_input` (raw `API_Session` or full redirect URL).
+- GET with valid `state` returns JSON usage help.
+- GET can also update token directly using `token_input` query parameter.
+- POST accepts JSON `token_input` (raw `API_Session` or full redirect URL).
 - Verifies signed `state` (expiry + scope) when `STATE_SIGNING_SECRET` is configured.
 - Upserts token into `session_config` row `id=1`.
 

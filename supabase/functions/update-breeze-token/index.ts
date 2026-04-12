@@ -76,37 +76,6 @@ function parseApiSession(raw: string): string {
   return text;
 }
 
-function renderForm(state: string | null): Response {
-  const stateInput = state
-    ? `<input type="hidden" name="state" value="${state.replace(/"/g, "&quot;")}"/>`
-    : "";
-  const html = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Update Breeze Token</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 24px; max-width: 720px; }
-      textarea { width: 100%; min-height: 120px; }
-      button { margin-top: 12px; padding: 10px 14px; }
-      .hint { color: #555; font-size: 14px; }
-    </style>
-  </head>
-  <body>
-    <h2>Update Breeze Session Token</h2>
-    <p class="hint">Paste API_Session directly, or paste the full redirect URL containing API_Session.</p>
-    <form method="post">
-      ${stateInput}
-      <textarea name="token_input" placeholder="Paste API_Session or full redirect URL"></textarea>
-      <br />
-      <button type="submit">Update Token</button>
-    </form>
-  </body>
-</html>`;
-  return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -127,7 +96,23 @@ Deno.serve(async (req) => {
   if (req.method === "GET" && !url.searchParams.get("token_input")) {
     try {
       await verifyState(stateFromQuery, stateSecret);
-      return renderForm(stateFromQuery);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          message: "Provide token_input via query param or send POST JSON.",
+          example_get:
+            `${url.origin}${url.pathname}?state=<state>&token_input=<API_Session_or_redirect_url>`,
+          example_post: {
+            method: "POST",
+            content_type: "application/json",
+            body: {
+              state: "<state>",
+              token_input: "<API_Session_or_redirect_url>",
+            },
+          },
+        }),
+        { status: 200, headers: corsHeaders },
+      );
     } catch (e) {
       return new Response(JSON.stringify({ error: (e as Error).message }), { status: 401, headers: corsHeaders });
     }
@@ -142,9 +127,10 @@ Deno.serve(async (req) => {
       tokenInput = String(body?.token_input ?? body?.api_session ?? body?.redirect_url ?? "").trim();
       stateValue = body?.state ? String(body.state) : stateValue;
     } else {
-      const form = await req.formData();
-      tokenInput = String(form.get("token_input") ?? "").trim();
-      stateValue = String(form.get("state") ?? stateValue ?? "");
+      return new Response(JSON.stringify({ error: "Use Content-Type: application/json for POST" }), {
+        status: 415,
+        headers: corsHeaders,
+      });
     }
   } else if (req.method === "GET") {
     tokenInput = String(url.searchParams.get("token_input") ?? "").trim();
