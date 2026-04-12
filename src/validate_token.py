@@ -48,6 +48,14 @@ def token_update_link(base_url: str, state: str | None) -> str:
     return f"{base_url}{sep}state={quote(state, safe='')}"
 
 
+def token_update_prefill_link(base_url: str, state: str | None) -> str:
+    base = token_update_link(base_url, state)
+    if not base:
+        return ""
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}token_input=PASTE_API_SESSION_OR_REDIRECT_URL"
+
+
 def load_token_from_supabase(url: str, supabase_key: str) -> str:
     client = create_client(url, supabase_key)
     res = client.table("session_config").select("breeze_session_token").eq("id", 1).limit(1).execute()
@@ -95,11 +103,17 @@ def main() -> int:
     if token_update_url:
         state = build_signed_state(state_signing_secret) if state_signing_secret else None
         update_link = token_update_link(token_update_url, state)
+        update_prefill = token_update_prefill_link(token_update_url, state)
         body_lines.extend(
             [
                 "",
-                "Step 2: Open token update URL and paste API_Session or full redirect URL.",
-                f"Token update URL: {update_link}",
+                "Step 2: Use one of these token update methods.",
+                f"Base URL (opens HTML form): {update_link}",
+                f"Ready URL format (replace token_input value): {update_prefill}",
+                f"JSON help URL: {update_link}&format=json" if "?" in update_link else f"JSON help URL: {update_link}?format=json",
+                "POST JSON example:",
+                f'curl -X POST "{update_link}" -H "Content-Type: application/json" '
+                + '-d \'{"token_input":"PASTE_API_SESSION_OR_REDIRECT_URL"}\'',
             ]
         )
     body = "\n".join(body_lines)

@@ -37,9 +37,10 @@ Function path:
 
 Behavior:
 
-- GET with valid `state` returns JSON usage help.
+- GET with valid `state` renders an HTML form by default.
+- GET with `format=json` returns JSON usage help.
 - GET can also update token directly using `token_input` query parameter.
-- POST accepts JSON `token_input` (raw `API_Session` or full redirect URL).
+- POST accepts form submit or JSON `token_input` (raw `API_Session` or full redirect URL).
 - Verifies signed `state` (expiry + scope) when `STATE_SIGNING_SECRET` is configured.
 - Upserts token into `session_config` row `id=1`.
 
