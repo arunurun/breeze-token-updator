@@ -76,7 +76,7 @@ function parseApiSession(raw: string): string {
   return text;
 }
 
-function renderForm(actionUrl: string, state: string | null): Response {
+function renderForm(actionPath: string, state: string | null): Response {
   const stateInput = state
     ? `<input type="hidden" name="state" value="${state.replace(/"/g, "&quot;")}"/>`
     : "";
@@ -96,7 +96,7 @@ function renderForm(actionUrl: string, state: string | null): Response {
   <body>
     <h2>Update Breeze Session Token</h2>
     <p class="hint">Paste API_Session directly, or paste full redirect URL containing API_Session.</p>
-    <form method="post" action="${actionUrl.replace(/"/g, "&quot;")}">
+    <form method="post" action="${actionPath.replace(/"/g, "&quot;")}">
       ${stateInput}
       <textarea name="token_input" placeholder="Paste API_Session or full redirect URL"></textarea>
       <br />
@@ -146,8 +146,7 @@ Deno.serve(async (req) => {
           { status: 200, headers: corsHeaders },
         );
       }
-      const actionUrl = `${url.origin}${url.pathname}`;
-      return renderForm(actionUrl, stateFromQuery);
+      return renderForm(url.pathname, stateFromQuery);
     } catch (e) {
       return new Response(JSON.stringify({ error: (e as Error).message }), { status: 401, headers: corsHeaders });
     }
