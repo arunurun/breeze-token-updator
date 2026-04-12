@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
+import json
 import os
 import sys
+import time
 from urllib.parse import quote
 
 from breeze_connect import BreezeConnect
@@ -18,12 +23,41 @@ def _required(name: str) -> str:
     return value
 
 
+def _required_any(*names: str) -> str:
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    raise RuntimeError(f"Missing required env var: one of {', '.join(names)}")
+
+
 def breeze_login_url(api_key: str) -> str:
     return f"https://api.icicidirect.com/apiuser/login?api_key={quote(api_key, safe='')}"
 
 
-def load_token_from_supabase(url: str, service_role_key: str) -> str:
-    client = create_client(url, service_role_key)
+def build_signed_state(signing_secret: str, ttl_seconds: int = 900) -> str:
+    payload = {"exp": int(time.time()) + int(ttl_seconds), "scope": "breeze-token-update-v1"}
+    payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    encoded = base64.urlsafe_b64encode(payload_json).decode("ascii").rstrip("=")
+    sig = hmac.new(
+        signing_secret.encode("utf-8"),
+        encoded.encode("ascii"),
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{encoded}.{sig}"
+
+
+def token_update_link(base_url: str, state: str | None) -> str:
+    if not base_url:
+        return ""
+    if not state:
+        return base_url
+    sep = "&" if "?" in base_url else "?"
+    return f"{base_url}{sep}state={quote(state, safe='')}"
+
+
+def load_token_from_supabase(url: str, supabase_key: str) -> str:
+    client = create_client(url, supabase_key)
     res = client.table("session_config").select("breeze_session_token").eq("id", 1).limit(1).execute()
     data = getattr(res, "data", None) or []
     if not data:
@@ -48,10 +82,11 @@ def main() -> int:
     api_key = _required("BREEZE_API_KEY")
     api_secret = _required("BREEZE_SECRET")
     supabase_url = _required("SUPABASE_URL")
-    service_role_key = _required("SUPABASE_SERVICE_ROLE_KEY")
+    supabase_key = _required_any("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY")
     token_update_url = (os.environ.get("TOKEN_UPDATE_URL") or "").strip()
+    state_signing_secret = (os.environ.get("STATE_SIGNING_SECRET") or "").strip()
 
-    token = load_token_from_supabase(supabase_url, service_role_key)
+    token = load_token_from_supabase(supabase_url, supabase_key)
     valid, reason = is_token_valid(api_key, api_secret, token)
     if valid:
         print("Breeze token is valid.")
@@ -62,10 +97,19 @@ def main() -> int:
         "Breeze session token appears expired/invalid.",
         f"Reason: {reason}",
         "",
+        "Step 1: Open Breeze login URL and complete mobile 2FA.",
         f"Login URL: {login_url}",
     ]
     if token_update_url:
-        body_lines.append(f"Token update endpoint: {token_update_url}")
+        state = build_signed_state(state_signing_secret) if state_signing_secret else None
+        update_link = token_update_link(token_update_url, state)
+        body_lines.extend(
+            [
+                "",
+                "Step 2: Open token update URL and paste API_Session or full redirect URL.",
+                f"Token update URL: {update_link}",
+            ]
+        )
     body = "\n".join(body_lines)
 
     send_webhook_alert(body)
