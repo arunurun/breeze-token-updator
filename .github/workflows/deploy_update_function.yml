@@ -32,6 +32,6 @@ jobs:
         run: |
           supabase secrets set \
             SUPABASE_URL="$SUPABASE_URL" \
-            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_KEY" \
+            SUPABASE_KEY="$SUPABASE_KEY" \
             STATE_SIGNING_SECRET="$STATE_SIGNING_SECRET" \
             --project-ref "$SUPABASE_PROJECT_REF"

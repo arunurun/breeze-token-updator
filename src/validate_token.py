@@ -23,14 +23,6 @@ def _required(name: str) -> str:
     return value
 
 
-def _required_any(*names: str) -> str:
-    for name in names:
-        value = (os.environ.get(name) or "").strip()
-        if value:
-            return value
-    raise RuntimeError(f"Missing required env var: one of {', '.join(names)}")
-
-
 def breeze_login_url(api_key: str) -> str:
     return f"https://api.icicidirect.com/apiuser/login?api_key={quote(api_key, safe='')}"
 
@@ -82,7 +74,7 @@ def main() -> int:
     api_key = _required("BREEZE_API_KEY")
     api_secret = _required("BREEZE_SECRET")
     supabase_url = _required("SUPABASE_URL")
-    supabase_key = _required_any("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY")
+    supabase_key = _required("SUPABASE_KEY")
     token_update_url = (os.environ.get("TOKEN_UPDATE_URL") or "").strip()
     state_signing_secret = (os.environ.get("STATE_SIGNING_SECRET") or "").strip()
 
