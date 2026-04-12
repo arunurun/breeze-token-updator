@@ -113,9 +113,9 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseKey = Deno.env.get("SUPABASE_KEY") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const stateSecret = Deno.env.get("STATE_SIGNING_SECRET") ?? "";
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return new Response(JSON.stringify({ error: "Missing Supabase env configuration" }), {
       status: 500,
       headers: corsHeaders,
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
   try {
     await verifyState(stateValue, stateSecret);
     const apiSession = parseApiSession(tokenInput);
-    const admin = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
     const { error } = await admin
       .from("session_config")
       .upsert({ id: 1, breeze_session_token: apiSession, updated_at: new Date().toISOString() }, { onConflict: "id" });
