@@ -28,6 +28,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TOKEN_UPDATE_URL: ${{ secrets.TOKEN_UPDATE_URL }}
+          TOKEN_FORM_URL: ${{ secrets.TOKEN_FORM_URL }}
           STATE_SIGNING_SECRET: ${{ secrets.STATE_SIGNING_SECRET }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
