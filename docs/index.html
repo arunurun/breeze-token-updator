@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Breeze Token Update</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; max-width: 760px; }
+      textarea { width: 100%; min-height: 120px; }
+      button { margin-top: 12px; padding: 10px 14px; }
+      .hint { color: #555; font-size: 14px; }
+      .row { margin-bottom: 12px; }
+      .error { color: #b00020; }
+      .success { color: #0b6b0b; }
+      code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h2>Update Breeze Session Token</h2>
+    <p class="hint">Paste API_Session directly or paste the full redirect URL containing API_Session.</p>
+
+    <div class="row">
+      <strong>State:</strong> <span id="stateLabel">missing</span>
+    </div>
+    <div class="row">
+      <strong>Update URL:</strong>
+      <span id="updateUrlLabel">missing</span>
+    </div>
+
+    <form id="tokenForm">
+      <textarea id="tokenInput" name="token_input" placeholder="Paste API_Session or full redirect URL"></textarea>
+      <br />
+      <button type="submit">Update Token</button>
+    </form>
+
+    <p id="status" class="hint"></p>
+
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const state = params.get("state") || "";
+        const updateUrl = params.get("update_url") || "";
+
+        const stateLabel = document.getElementById("stateLabel");
+        const updateUrlLabel = document.getElementById("updateUrlLabel");
+        const status = document.getElementById("status");
+        const form = document.getElementById("tokenForm");
+        const tokenInput = document.getElementById("tokenInput");
+
+        stateLabel.textContent = state ? "present" : "missing";
+        updateUrlLabel.textContent = updateUrl ? updateUrl : "missing";
+
+        function setStatus(message, type) {
+          status.textContent = message;
+          status.className = type === "error" ? "error" : type === "success" ? "success" : "hint";
+        }
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const tokenValue = tokenInput.value.trim();
+          if (!state) {
+            setStatus("Missing state in URL. Use the link from the email.", "error");
+            return;
+          }
+          if (!updateUrl) {
+            setStatus("Missing update_url in URL. Use the link from the email.", "error");
+            return;
+          }
+          if (!tokenValue) {
+            setStatus("Paste API_Session or full redirect URL first.", "error");
+            return;
+          }
+
+          setStatus("Submitting token...", "hint");
+          try {
+            const resp = await fetch(updateUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Accept": "application/json" },
+              body: JSON.stringify({ state: state, token_input: tokenValue })
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+              setStatus("Token updated successfully. You can re-run the validator now.", "success");
+            } else {
+              setStatus("Update failed: " + (data.error || "unknown error"), "error");
+            }
+          } catch (err) {
+            setStatus("Request failed: " + String(err), "error");
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -7,7 +7,7 @@ import json
 import os
 import sys
 import time
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
@@ -48,6 +48,21 @@ def token_update_link(base_url: str, state: str | None) -> str:
     return f"{base_url}{sep}state={quote(state, safe='')}"
 
 
+def token_form_link(form_base_url: str, state: str | None, update_url: str) -> str:
+    base = form_base_url.strip()
+    if not base:
+        return ""
+    params: dict[str, str] = {}
+    if state:
+        params["state"] = state
+    if update_url:
+        params["update_url"] = update_url
+    if not params:
+        return base
+    sep = "&" if "?" in base else "?"
+    return f"{base}{sep}{urlencode(params, quote_via=quote)}"
+
+
 def load_token_from_supabase(url: str, supabase_key: str) -> str:
     client = create_client(url, supabase_key)
     res = client.table("session_config").select("breeze_session_token").eq("id", 1).limit(1).execute()
@@ -76,6 +91,7 @@ def main() -> int:
     supabase_url = _required("SUPABASE_URL")
     supabase_key = _required("SUPABASE_KEY")
     token_update_url = (os.environ.get("TOKEN_UPDATE_URL") or "").strip()
+    token_form_url = (os.environ.get("TOKEN_FORM_URL") or "").strip()
     state_signing_secret = (os.environ.get("STATE_SIGNING_SECRET") or "").strip()
 
     token = load_token_from_supabase(supabase_url, supabase_key)
@@ -95,12 +111,13 @@ def main() -> int:
     if token_update_url:
         state = build_signed_state(state_signing_secret) if state_signing_secret else None
         update_link = token_update_link(token_update_url, state)
+        form_link = token_form_link(token_form_url, state, token_update_url)
         body_lines.extend(
             [
                 "",
-                "Step 2: Open this URL to get the HTML token form.",
-                f"Token form URL: {update_link}",
-                "If needed, API mode is also supported via POST JSON using token_input.",
+                "Step 2: Open the token form URL and submit your API_Session.",
+                f"Token form URL: {form_link or update_link}",
+                "API fallback: POST JSON to token update URL with token_input.",
             ]
         )
     body = "\n".join(body_lines)

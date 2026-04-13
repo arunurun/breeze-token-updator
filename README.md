@@ -12,9 +12,9 @@ This repo is intentionally separate from Titan and handles only:
 1. Scheduled workflow checks Breeze token health.
 2. If expired, you receive a mobile alert with:
    - Breeze login URL
-   - Signed token update URL
+   - Token form URL (hosted HTML page)
 3. You complete login + 2FA on mobile.
-4. Call the signed token update URL with `token_input` (raw `API_Session` or full redirect URL).
+4. Open the token form URL, paste the API_Session (or full redirect URL), and submit.
 5. Supabase Edge Function stores token in `session_config`.
 6. Titan picks up the new token in the next run.
 
@@ -25,6 +25,7 @@ This repo is intentionally separate from Titan and handles only:
 - `SUPABASE_URL`
 - `SUPABASE_KEY` (service-role key value)
 - `TOKEN_UPDATE_URL` (endpoint that accepts the new token)
+- `TOKEN_FORM_URL` (HTML form URL, e.g. GitHub Pages)
 - `STATE_SIGNING_SECRET` (HMAC secret used to sign/validate short-lived update links)
 - `ALERT_WEBHOOK_URL` (optional; Slack/WhatsApp bridge/custom notifier)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `EMAIL_TO` (optional email alerts)
@@ -43,6 +44,15 @@ Behavior:
 - POST accepts form submit or JSON `token_input` (raw `API_Session` or full redirect URL).
 - Verifies signed `state` (expiry + scope) when `STATE_SIGNING_SECRET` is configured.
 - Upserts token into `session_config` row `id=1`.
+
+## Token form (HTML)
+
+Static HTML form lives at `docs/index.html`. Host this with GitHub Pages:
+
+1. GitHub repo → Settings → Pages
+2. Source: `main` branch, folder `/docs`
+3. Set secret `TOKEN_FORM_URL` to the Pages URL:
+   `https://arunurun.github.io/breeze-token-updator/`
 
 ## Deploy function (GitHub Actions)
 
