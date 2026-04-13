@@ -8,7 +8,6 @@ type StatePayload = {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Content-Type": "application/json",
 };
 
 function decodeBase64Url(input: string): Uint8Array {
@@ -109,7 +108,7 @@ function renderForm(actionPath: string, state: string | null): Response {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" } });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -118,7 +117,7 @@ Deno.serve(async (req) => {
   if (!supabaseUrl || !serviceRoleKey) {
     return new Response(JSON.stringify({ error: "Missing Supabase env configuration" }), {
       status: 500,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
     });
   }
 
@@ -143,12 +142,15 @@ Deno.serve(async (req) => {
               },
             },
           }),
-          { status: 200, headers: corsHeaders },
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" } },
         );
       }
       return renderForm(url.pathname, stateFromQuery);
     } catch (e) {
-      return new Response(JSON.stringify({ error: (e as Error).message }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: (e as Error).message }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
+      });
     }
   }
 
@@ -168,7 +170,10 @@ Deno.serve(async (req) => {
   } else if (req.method === "GET") {
     tokenInput = String(url.searchParams.get("token_input") ?? "").trim();
   } else {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
+    });
   }
 
   try {
@@ -182,12 +187,12 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true, message: "Breeze token updated" }), {
       status: 200,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
     });
   }
 });
