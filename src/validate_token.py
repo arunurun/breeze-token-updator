@@ -164,13 +164,17 @@ def is_manual_github_dispatch() -> bool:
 def main() -> int:
     load_dotenv()
     now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+    manual_dispatch = is_manual_github_dispatch()
     closed_reason = market_closed_reason_ist(now_ist)
-    if closed_reason:
+    if closed_reason and not manual_dispatch:
         message = f"{closed_reason} Skipping token validation for {now_ist.date().isoformat()} (IST)."
         print(message)
-        if is_manual_github_dispatch():
-            send_email_alert("Breeze token validation skipped", message)
         return 0
+    if closed_reason and manual_dispatch:
+        print(
+            f"{closed_reason} Manual dispatch detected, continuing token validation for"
+            f" {now_ist.date().isoformat()} (IST)."
+        )
 
     api_key = _required("BREEZE_API_KEY")
     api_secret = _required("BREEZE_SECRET")

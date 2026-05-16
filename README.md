@@ -90,7 +90,8 @@ python src/validate_token.py
 ## Schedule and market holiday behavior
 
 - Workflow schedule is set to `06:00 IST` Monday-Friday (`30 0 * * 1-5` in UTC).
-- Script exits early when market is closed:
+- Script exits early when market is closed for scheduled runs:
   - weekends (Saturday/Sunday)
   - NSE trading holidays fetched at runtime
   - optional additional dates from `MARKET_HOLIDAYS_IST`
+- Manual GitHub dispatch (`workflow_dispatch`) always continues validation, even on weekends/holidays.
