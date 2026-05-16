@@ -69,6 +69,40 @@ class ValidateTokenMarketHoursTests(unittest.TestCase):
         exit_code = validate_token.main()
         self.assertEqual(exit_code, 0)
 
+    @patch("validate_token.send_email_alert")
+    @patch("validate_token.datetime")
+    @patch("validate_token.market_closed_reason_ist", return_value="Indian market is closed (weekend).")
+    @patch("validate_token.load_dotenv")
+    @patch.dict(os.environ, {"GITHUB_EVENT_NAME": "workflow_dispatch"}, clear=False)
+    def test_main_sends_email_on_manual_market_closed(
+        self,
+        _mock_dotenv: object,
+        _mock_closed_reason: object,
+        mock_datetime: object,
+        mock_send_email: object,
+    ) -> None:
+        mock_datetime.now.return_value = datetime(2026, 5, 16, 6, 0)
+        exit_code = validate_token.main()
+        self.assertEqual(exit_code, 0)
+        mock_send_email.assert_called_once()
+
+    @patch("validate_token.send_email_alert")
+    @patch("validate_token.datetime")
+    @patch("validate_token.market_closed_reason_ist", return_value="Indian market is closed (weekend).")
+    @patch("validate_token.load_dotenv")
+    @patch.dict(os.environ, {"GITHUB_EVENT_NAME": "schedule"}, clear=False)
+    def test_main_does_not_send_email_on_scheduled_market_closed(
+        self,
+        _mock_dotenv: object,
+        _mock_closed_reason: object,
+        mock_datetime: object,
+        mock_send_email: object,
+    ) -> None:
+        mock_datetime.now.return_value = datetime(2026, 5, 16, 6, 0)
+        exit_code = validate_token.main()
+        self.assertEqual(exit_code, 0)
+        mock_send_email.assert_not_called()
+
 
 class WorkflowScheduleTests(unittest.TestCase):
     def test_validate_workflow_uses_6am_ist_weekdays(self) -> None:

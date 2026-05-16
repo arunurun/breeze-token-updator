@@ -157,12 +157,19 @@ def market_closed_reason_ist(now_ist: datetime) -> str | None:
     return None
 
 
+def is_manual_github_dispatch() -> bool:
+    return (os.environ.get("GITHUB_EVENT_NAME") or "").strip() == "workflow_dispatch"
+
+
 def main() -> int:
     load_dotenv()
     now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
     closed_reason = market_closed_reason_ist(now_ist)
     if closed_reason:
-        print(f"{closed_reason} Skipping token validation for {now_ist.date().isoformat()} (IST).")
+        message = f"{closed_reason} Skipping token validation for {now_ist.date().isoformat()} (IST)."
+        print(message)
+        if is_manual_github_dispatch():
+            send_email_alert("Breeze token validation skipped", message)
         return 0
 
     api_key = _required("BREEZE_API_KEY")
