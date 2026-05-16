@@ -5,12 +5,16 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import sys
 import time
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from urllib.parse import quote, urlencode
 
 from breeze_connect import BreezeConnect
 from dotenv import load_dotenv
+import requests
 from supabase import create_client
 
 from notify import send_email_alert, send_webhook_alert
@@ -84,8 +88,83 @@ def is_token_valid(api_key: str, api_secret: str, token: str) -> tuple[bool, str
         return False, str(exc)
 
 
+def parse_ist_holidays_env(raw: str) -> set[date]:
+    values = [item.strip() for item in re.split(r"[,\n;]+", raw or "") if item.strip()]
+    parsed: set[date] = set()
+    for value in values:
+        parsed.add(datetime.strptime(value, "%Y-%m-%d").date())
+    return parsed
+
+
+def _extract_dates_from_obj(obj: object) -> set[date]:
+    found: set[date] = set()
+    if isinstance(obj, dict):
+        for value in obj.values():
+            found.update(_extract_dates_from_obj(value))
+        return found
+    if isinstance(obj, list):
+        for item in obj:
+            found.update(_extract_dates_from_obj(item))
+        return found
+    if isinstance(obj, str):
+        text = obj.strip()
+        for fmt in ("%d-%b-%Y", "%d-%B-%Y", "%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                found.add(datetime.strptime(text, fmt).date())
+                break
+            except ValueError:
+                continue
+    return found
+
+
+def load_nse_holidays_ist() -> set[date]:
+    session = requests.Session()
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json,text/plain,*/*",
+        "Referer": "https://www.nseindia.com/",
+    }
+    try:
+        session.get("https://www.nseindia.com", headers=headers, timeout=10)
+        response = session.get(
+            "https://www.nseindia.com/api/holiday-master?type=trading",
+            headers=headers,
+            timeout=15,
+        )
+        response.raise_for_status()
+        return _extract_dates_from_obj(response.json())
+    except Exception:  # noqa: BLE001
+        return set()
+
+
+def market_closed_reason_ist(now_ist: datetime) -> str | None:
+    today_ist = now_ist.date()
+    if today_ist.weekday() >= 5:
+        return "Indian market is closed (weekend)."
+
+    env_holidays_raw = (os.environ.get("MARKET_HOLIDAYS_IST") or "").strip()
+    env_holidays: set[date] = set()
+    if env_holidays_raw:
+        try:
+            env_holidays = parse_ist_holidays_env(env_holidays_raw)
+        except ValueError as exc:
+            print(f"Ignoring MARKET_HOLIDAYS_IST due to parse error: {exc}")
+
+    nse_holidays = load_nse_holidays_ist()
+    all_holidays = nse_holidays | env_holidays
+    if today_ist in all_holidays:
+        return "Indian market is closed (NSE trading holiday)."
+    return None
+
+
 def main() -> int:
     load_dotenv()
+    now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+    closed_reason = market_closed_reason_ist(now_ist)
+    if closed_reason:
+        print(f"{closed_reason} Skipping token validation for {now_ist.date().isoformat()} (IST).")
+        return 0
+
     api_key = _required("BREEZE_API_KEY")
     api_secret = _required("BREEZE_SECRET")
     supabase_url = _required("SUPABASE_URL")

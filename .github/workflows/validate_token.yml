@@ -3,8 +3,8 @@ name: Validate Breeze token
 on:
   workflow_dispatch:
   schedule:
-    # 08:45 IST Monday-Friday
-    - cron: "15 3 * * 1-5"
+    # 06:00 IST Monday-Friday
+    - cron: "30 0 * * 1-5"
 
 jobs:
   validate:

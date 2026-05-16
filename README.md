@@ -6,6 +6,7 @@ This repo is intentionally separate from Titan and handles only:
 - Daily Breeze token validation
 - Expiry alert notification
 - Secure token update endpoint integration (Supabase Edge Function included)
+- Market-closed skip guard (weekends + NSE trading holidays)
 
 ## Daily user interaction
 
@@ -27,6 +28,7 @@ This repo is intentionally separate from Titan and handles only:
 - `TOKEN_UPDATE_URL` (endpoint that accepts the new token)
 - `TOKEN_FORM_URL` (HTML form URL, e.g. GitHub Pages)
 - `STATE_SIGNING_SECRET` (HMAC secret used to sign/validate short-lived update links)
+- `MARKET_HOLIDAYS_IST` (optional comma-separated `YYYY-MM-DD` list for additional market holidays/overrides)
 - `ALERT_WEBHOOK_URL` (optional; Slack/WhatsApp bridge/custom notifier)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `EMAIL_TO` (optional email alerts)
 
@@ -84,3 +86,11 @@ python -m venv .venv
 pip install -r requirements.txt
 python src/validate_token.py
 ```
+
+## Schedule and market holiday behavior
+
+- Workflow schedule is set to `06:00 IST` Monday-Friday (`30 0 * * 1-5` in UTC).
+- Script exits early when market is closed:
+  - weekends (Saturday/Sunday)
+  - NSE trading holidays fetched at runtime
+  - optional additional dates from `MARKET_HOLIDAYS_IST`
